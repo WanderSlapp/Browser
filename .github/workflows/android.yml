@@ -1,1 +1,36 @@
+name: Build Android APK
 
+on:
+  push:
+    branches: [ "main" ] # kapena master kutengera branch yanu
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v3
+      with:
+        distribution: 'zulu'
+        java-version: '17'
+
+    - name: Install Cordova
+      run: npm install -g cordova
+
+    - name: Install Dependencies
+      run: npm install
+
+    # Hano ndipamene Cordova imawerenga config.xml yatsopano n'kupanga Android Platform ilibe vuto
+    - name: Build Android App
+      run: |
+        cordova platform add android@latest
+        cordova build android --release
