@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Wander Browser</title>
+    <!-- Flaticon CDN Icons -->
+    <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/uicons-solid-rounded/css/uicons-solid-rounded.css'>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { background-color: #f8f9fa; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+        /* Top Navigation Bar - Permanently on Top */
+        .navbar { display: flex; align-items: center; background: #ffffff; padding: 10px 12px; border-bottom: 1px solid #e0e0e0; gap: 8px; position: relative; z-index: 100; height: 60px; }
+        .nav-btn { background: none; border: none; font-size: 20px; color: #5f6368; cursor: pointer; padding: 6px; display: flex; align-items: center; justify-content: center; }
+        
+        /* Address Bar Container */
+        .address-container { flex: 1; position: relative; display: flex; align-items: center; background: #f1f3f4; border-radius: 24px; padding: 0 12px; }
+        .address-bar { width: 100%; height: 40px; border: none; background: transparent; font-size: 14px; outline: none; color: #202124; padding-right: 60px; }
+        
+        /* Actions Inside Address Bar */
+        .address-actions { position: absolute; right: 10px; display: flex; align-items: center; gap: 8px; }
+        
+        /* Loading Spinner */
+        .spinner { width: 18px; height: 18px; border: 2.5px solid #ccc; border-top: 2.5px solid #1a73e8; border-radius: 50%; animation: spin 0.8s linear infinite; display: none; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        .search-icon-btn { background: none; border: none; color: #1a73e8; font-size: 18px; cursor: pointer; display: flex; align-items: center; }
+
+        /* Autocomplete Suggestions Box */
+        .suggestions-box { position: absolute; top: 100%; left: 0; right: 0; background: #ffffff; border: 1px solid #dadce0; border-radius: 0 0 14px 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: none; z-index: 120; max-height: 250px; overflow-y: auto; }
+        .suggestion-item { padding: 12px 16px; font-size: 14px; border-bottom: 1px solid #f1f3f4; cursor: pointer; display: flex; align-items: center; gap: 12px; color: #3c4043; }
+        .suggestion-item:hover { background-color: #f8f9fa; }
+
+        /* Dropdown Menu List */
+        .menu-dropdown { position: absolute; top: 56px; right: 12px; background: #ffffff; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.2); width: 230px; display: none; z-index: 130; padding: 8px 0; border: 1px solid #dadce0; }
+        .menu-item { display: flex; align-items: center; padding: 12px 18px; text-decoration: none; color: #3c4043; font-size: 14px; font-weight: 500; cursor: pointer; }
+        .menu-item:hover { background-color: #f1f3f4; }
+        .menu-item i { margin-right: 14px; font-size: 18px; color: #5f6368; }
+
+        /* Main View Container */
+        .content-area { flex: 1; position: relative; width: 100%; height: calc(100vh - 60px); overflow: hidden; }
+
+        /* Embedded Web Frame - Where Google, FB, YouTube load */
+        .web-frame { width: 100%; height: 100%; border: none; display: none; background: #ffffff; }
+
+        /* Search History View */
+        #historyView { padding: 16px; height: 100%; overflow-y: auto; }
+        .history-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #dadce0; }
+        .history-title { font-size: 16px; font-weight: bold; color: #202124; }
+        .clear-btn { background: none; border: none; color: #d93025; font-size: 13px; font-weight: 600; cursor: pointer; }
+        .history-list { list-style: none; }
+        .history-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #ffffff; border-radius: 8px; margin-bottom: 8px; border: 1px solid #e0e0e0; }
+        .history-text { font-size: 14px; color: #3c4043; cursor: pointer; flex: 1; }
+        .delete-single-btn { background: none; border: none; color: #5f6368; cursor: pointer; font-size: 14px; padding: 4px; }
+
+        /* Share Modal & Popup */
+        .share-modal { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: flex-end; z-index: 1000; }
+        .share-content { background: #ffffff; width: 100%; border-radius: 20px 20px 0 0; padding: 20px; }
+        .share-header { font-size: 16px; font-weight: bold; margin-bottom: 15px; text-align: center; }
+        .share-options { display: flex; justify-content: space-around; }
+        .share-option-btn { display: flex; flex-direction: column; align-items: center; gap: 8px; background: none; border: none; cursor: pointer; color: #3c4043; font-size: 13px; }
+        .share-option-btn i { font-size: 22px; padding: 12px; border-radius: 50%; background: #f1f3f4; color: #1a73e8; }
+        .download-popup { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #323232; color: #ffffff; padding: 12px 20px; border-radius: 25px; display: none; align-items: center; gap: 10px; z-index: 100; font-size: 14px; }
+    </style>
+</head>
+<body>
+
+     <!-- Navigation Bar -->
+    <div class="navbar">
+        <!-- 3. Direct Home Link -->
+        <button class="nav-btn" onclick="location.href='home.html'" title="Home">
+            <i class="fi fi-sr-home"></i>
+        </button>
+
+        <div class="address-container">
+            <input type="text" id="addressBar" class="address-bar" placeholder="Search or type URL..." onkeyup="handleSearchInput(event)" onfocus="showSuggestions()">
+            
+            <div class="address-actions">
+                <div id="loadingSpinner" class="spinner"></div>
+                <button class="search-icon-btn" onclick="executeSearchProcess()" title="Search">
+                    <i class="fi fi-sr-search"></i>
+                </button>
+            </div>
+
+            <div id="suggestionsBox" class="suggestions-box"></div>
+        </div>
+
+        <button class="nav-btn" onclick="toggleMenu()" title="Menu">
+            <i class="fi fi-sr-menu-dots-vertical"></i>
+        </button>
+    </div>
+
+    <!-- Dropdown Menu -->
+    <div id="menuDropdown" class="menu-dropdown">
+        <div class="menu-item" onclick="goHome()"><i class="fi fi-sr-add"></i> New tab</div>
+        <div class="menu-item" onclick="toggleDesktopSite()"><i class="fi fi-sr-computer"></i> Desktop site</div>
+        <div class="menu-item" onclick="navigateTo('downloads.html')"><i class="fi fi-sr-download"></i> Downloads</div>
+        <div class="menu-item" onclick="navigateTo('bookmarks.html')"><i class="fi fi-sr-bookmark"></i> Bookmarks</div>
+        <div class="menu-item" onclick="navigateTo('history.html')"><i class="fi fi-sr-time-past"></i> History</div>
+        <div class="menu-item" onclick="openShareModal()"><i class="fi fi-sr-share"></i> Share link</div>
+        <div class="menu-item" onclick="navigateTo('settings.html')"><i class="fi fi-sr-settings"></i> Settings</div>
+    </div>
+
+    <!-- Main View Area -->
+    <div class="content-area">
+        <!-- Local Search History View -->
+        <div id="historyView">
+            <div class="history-header">
+                <span class="history-title">Recent Searches</span>
+                <button class="clear-btn" onclick="clearAllHistory()">Delete All</button>
+            </div>
+            <ul id="historyList" class="history-list"></ul>
+        </div>
+
+        <!-- Embedded Web Frame for Live Web Content -->
+        <iframe id="webFrame" class="web-frame" onload="onFrameLoaded()"></iframe>
+    </div>
+
+    <!-- Share Dialog -->
+    <div id="shareModal" class="share-modal" onclick="closeShareModal()">
+        <div class="share-content" onclick="event.stopPropagation()">
+            <div class="share-header">Share Link</div>
+            <div class="share-options">
+                <button class="share-option-btn" onclick="copyLink()"><i class="fi fi-sr-copy"></i><span>Copy</span></button>
+                <button class="share-option-btn" onclick="shareWhatsApp()"><i class="fi fi-sr-comment"></i><span>WhatsApp</span></button>
+                <button class="share-option-btn" onclick="shareFacebook()"><i class="fi fi-sr-share-square"></i><span>Facebook</span></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Download Notification -->
+    <div id="downloadPopup" class="download-popup">
+        <i class="fi fi-sr-file-download" style="color: #4caf50;"></i>
+        <span id="downloadText">Downloading file...</span>
+    </div>
+
+    <script src="cordova.js"></script>
+    <script>
+        const addressBar = document.getElementById('addressBar');
+        const suggestionsBox = document.getElementById('suggestionsBox');
+        const loadingSpinner = document.getElementById('loadingSpinner');
+        const menuDropdown = document.getElementById('menuDropdown');
+        const historyView = document.getElementById('historyView');
+        const historyList = document.getElementById('historyList');
+        const webFrame = document.getElementById('webFrame');
+
+        document.addEventListener('DOMContentLoaded', renderHistoryList);
+
+        function handleSearchInput(event) {
+            const query = addressBar.value.trim();
+            if (event.key === 'Enter') {
+                executeSearchProcess();
+                return;
+            }
+            if (query.length === 0) {
+                suggestionsBox.style.display = 'none';
+                return;
+            }
+
+            let html = `
+                <div class="suggestion-item" onclick="executeSearchProcess()">
+                    <i class="fi fi-sr-search"></i>
+                    <span>Search Google for: "<strong>${query}</strong>"</span>
+                </div>
+            `;
+            suggestionsBox.innerHTML = html;
+            suggestionsBox.style.display = 'block';
+        }
+
+        function executeSearchProcess() {
+            const query = addressBar.value.trim();
+            suggestionsBox.style.display = 'none';
+            if (!query) return;
+
+            let targetUrl = "";
+            // Check if input is a direct URL or a search phrase
+            if ((query.includes('.') && !query.includes(' ')) || query.startsWith('http://') || query.startsWith('https://')) {
+                targetUrl = query.startsWith('http') ? query : 'https://' + query;
+            } else {
+                // Use Google Search underlying engine directly inside frame
+                targetUrl = 'https://www.google.com/search?q=' + encodeURIComponent(query);
+            }
+
+            openTargetUrl(targetUrl);
+        }
+
+        function openTargetUrl(url) {
+            suggestionsBox.style.display = 'none';
+            menuDropdown.style.display = 'none';
+            addressBar.value = url;
+            saveSearchToHistory(url);
+            showSpinnerAnimation();
+
+            // Display web content directly under Wander Browser address bar
+            historyView.style.display = 'none';
+            webFrame.style.display = 'block';
+            webFrame.src = url;
+        }
+
+        function onFrameLoaded() {
+            loadingSpinner.style.display = 'none';
+        }
+
+        function goHome() {
+            webFrame.style.display = 'none';
+            webFrame.src = '';
+            historyView.style.display = 'block';
+            addressBar.value = '';
+        }
+
+        function showSpinnerAnimation() {
+            loadingSpinner.style.display = 'inline-block';
+        }
+
+        function showSuggestions() {
+            if (addressBar.value.trim().length > 0) {
+                suggestionsBox.style.display = 'block';
+            }
+        }
+
+        /* History Management */
+        function saveSearchToHistory(term) {
+            let history = JSON.parse(localStorage.getItem('wander_search_history') || '[]');
+            if (!history.includes(term)) {
+                history.unshift(term);
+                localStorage.setItem('wander_search_history', JSON.stringify(history));
+                renderHistoryList();
+            }
+        }
+
+        function renderHistoryList() {
+            let history = JSON.parse(localStorage.getItem('wander_search_history') || '[]');
+            if (history.length === 0) {
+                historyList.innerHTML = '<li style="color:#70757a; font-size:13px; text-align:center; padding:20px;">No search history found.</li>';
+                return;
+            }
+
+            let html = '';
+            history.forEach((item, index) => {
+                html += `<li class="history-item">
+                            <span class="history-text" onclick="searchFromHistory('${item}')">${item}</span>
+                            <button class="delete-single-btn" onclick="deleteHistoryItem(${index})"><i class="fi fi-sr-trash"></i></button>
+                         </li>`;
+            });
+            historyList.innerHTML = html;
+        }
+
+        function searchFromHistory(term) {
+            addressBar.value = term;
+            executeSearchProcess();
+        }
+
+        function deleteHistoryItem(index) {
+            let history = JSON.parse(localStorage.getItem('wander_search_history') || '[]');
+            history.splice(index, 1);
+            localStorage.setItem('wander_search_history', JSON.stringify(history));
+            renderHistoryList();
+        }
+
+        function clearAllHistory() {
+            localStorage.removeItem('wander_search_history');
+            renderHistoryList();
+        }
+
+        /* Menu Navigation */
+        function toggleMenu() {
+            menuDropdown.style.display = (menuDropdown.style.display === 'block') ? 'none' : 'block';
+        }
+
+        function navigateTo(pageUrl) {
+            menuDropdown.style.display = 'none';
+            window.location.href = pageUrl;
+        }
+
+        function toggleDesktopSite() {
+            menuDropdown.style.display = 'none';
+            alert("Desktop Mode active.");
+        }
+
+        /* Modals & UI Events */
+        function openShareModal() {
+            menuDropdown.style.display = 'none';
+            document.getElementById('shareModal').style.display = 'flex';
+        }
+
+        function closeShareModal() {
+            document.getElementById('shareModal').style.display = 'none';
+        }
+
+        function copyLink() {
+            const link = addressBar.value || window.location.href;
+            navigator.clipboard.writeText(link);
+            alert("Link copied!");
+            closeShareModal();
+        }
+
+        function shareWhatsApp() {
+            const link = addressBar.value || window.location.href;
+            openTargetUrl('https://api.whatsapp.com/send?text=' + encodeURIComponent(link));
+            closeShareModal();
+        }
+
+        function shareFacebook() {
+            const link = addressBar.value || window.location.href;
+            openTargetUrl('https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent(link));
+            closeShareModal();
+        }
+
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.address-container')) {
+                suggestionsBox.style.display = 'none';
+            }
+            if (!e.target.closest('.nav-btn') && !e.target.closest('.menu-dropdown')) {
+                menuDropdown.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>
